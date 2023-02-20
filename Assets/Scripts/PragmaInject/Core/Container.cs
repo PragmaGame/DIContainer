@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace CoreDIContainer
+namespace PragmaInject.Core
 {
     public class Container : IDisposable
     {
@@ -34,7 +34,7 @@ namespace CoreDIContainer
             return subContainer;
         }
 
-        public void RemoveSubContainer(Container container)
+        private void RemoveSubContainer(Container container)
         {
             _subContainers.Remove(container);
         }
@@ -67,6 +67,11 @@ namespace CoreDIContainer
         {
             _containerList.Add(item);
         }
+        
+        public void BindMany<T>(IEnumerable<T> items) where T : class
+        {
+            _containerList.AddRange(items);
+        }
 
         public T Resolve<T>(bool isRecursiveSearch = true) where T : class
         {
@@ -85,15 +90,28 @@ namespace CoreDIContainer
             return dependency as IList<T>;
         }
 
-        public void InjectDependencies()
+        public void InjectDependenciesInBinders()
         {
             foreach (var item in _containerList)
             {
-                InjectAll(item);
+                InjectInObject(item);
+            }
+        }
+        
+        public void InjectDependenciesInObjects(IEnumerable<object> objects, bool isNeedReinject = false)
+        {
+            foreach (var obj in objects)
+            {
+                if (_containerList.Contains(obj) && !isNeedReinject)
+                {
+                    continue;
+                }
+                
+                InjectInObject(obj);
             }
         }
 
-        private void InjectAll(object target)
+        private void InjectInObject(object target)
         {
             var methods = new List<MethodInfo>();
             
@@ -205,7 +223,11 @@ namespace CoreDIContainer
 
             if (isRecursive && _rootContainer != null)
             {
-                _rootContainer.TryGetSingleDependencyByType(type, true, out dependency);
+                if (_rootContainer.TryGetSingleDependencyByType(type, true, out var dependencyRoot))
+                {
+                    dependency = dependencyRoot;
+                    return true;
+                }
             }
             
             dependency = null;

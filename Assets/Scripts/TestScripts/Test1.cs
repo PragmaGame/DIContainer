@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using CoreDIContainer;
+using PragmaInject.Core;
 using UnityEngine;
 
 namespace TestScripts

@@ -1,34 +1,31 @@
 ﻿using UnityEngine;
 
-namespace CoreDIContainer
+namespace PragmaInject.Core
 {
     public sealed class ProjectContext : Context
     {
         private static ProjectContext _instance;
-        
-        public override Container Container { get; }
 
         public static ProjectContext Instance => _instance;
 
         private void Awake()
         {
+            Validate();
+        }
+
+        private void Validate()
+        {
             if (_instance == null)
             {
                 _instance = this;
+                
                 DontDestroyOnLoad(gameObject);
             }
             else
             {
-                Destroy(gameObject);
+                throw new UnityException("More than one ProjectContext");
+                //Destroy(gameObject);
             }
-            
-            Debug.Log("Awake Project Conteext");
-        }
-
-        public override void InstallBindings(Container container)
-        {
-            base.InstallBindings(container);
-            Debug.Log($"{GetType().Name} Bindings Installed");
         }
     }
 }

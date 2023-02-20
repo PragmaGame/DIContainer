@@ -1,7 +1,7 @@
 ﻿using System;
 using JetBrains.Annotations;
 
-namespace CoreDIContainer
+namespace PragmaInject.Core
 {
     [MeansImplicitUse(ImplicitUseKindFlags.Assign)]
     [AttributeUsage(AttributeTargets.Method)]

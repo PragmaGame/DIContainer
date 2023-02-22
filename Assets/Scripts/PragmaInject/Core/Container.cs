@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace PragmaInject.Core
 {
@@ -13,8 +15,8 @@ namespace PragmaInject.Core
         private Container _rootContainer;
         
         private readonly List<Container> _subContainers;
-        private readonly List<object> _containerList;
-        
+        private readonly List<object> _bindings;
+
         public IReadOnlyList<Container> SubContainers => _subContainers;
 
         public Container(Container root = null)
@@ -22,7 +24,7 @@ namespace PragmaInject.Core
             _rootContainer = root;
             
             _subContainers = new List<Container>();
-            _containerList = new List<object>();
+            _bindings = new List<object> { this };
         }
 
         public Container CreateSubContainer()
@@ -58,19 +60,19 @@ namespace PragmaInject.Core
             
             _rootContainer.RemoveSubContainer(this);
             _rootContainer = null;
-            
+
             _subContainers.Clear();
-            _containerList.Clear();
+            _bindings.Clear();
         }
 
         public void Bind<T>(T item) where T : class
         {
-            _containerList.Add(item);
+            _bindings.Add(item);
         }
         
         public void BindMany<T>(IEnumerable<T> items) where T : class
         {
-            _containerList.AddRange(items);
+            _bindings.AddRange(items);
         }
 
         public T Resolve<T>(bool isRecursiveSearch = true) where T : class
@@ -90,19 +92,19 @@ namespace PragmaInject.Core
             return dependency as IList<T>;
         }
 
-        public void InjectDependenciesInBinders()
+        public void InjectInBinders()
         {
-            foreach (var item in _containerList)
+            foreach (var item in _bindings)
             {
                 InjectInObject(item);
             }
         }
         
-        public void InjectDependenciesInObjects(IEnumerable<object> objects, bool isNeedReinject = false)
+        public void InjectInObjects(IEnumerable<object> objects, bool isNeedReinject = false)
         {
             foreach (var obj in objects)
             {
-                if (_containerList.Contains(obj) && !isNeedReinject)
+                if (_bindings.Contains(obj) && !isNeedReinject)
                 {
                     continue;
                 }
@@ -111,7 +113,18 @@ namespace PragmaInject.Core
             }
         }
 
-        private void InjectInObject(object target)
+        public void InjectInMono(Component monoComponent, bool isRecursive)
+        {
+            var objects = isRecursive ? monoComponent.GetComponentsInChildren<Component>()
+                : monoComponent.GetComponents<Component>();
+
+            foreach (var obj in objects)
+            {
+                InjectInObject(obj);
+            }
+        }
+
+        public void InjectInObject(object target)
         {
             var methods = new List<MethodInfo>();
             
@@ -196,7 +209,7 @@ namespace PragmaInject.Core
 
         private void GetManyDependencyByType(Type elementType, IList collect, bool isRecursive)
         {
-            foreach (var item in _containerList)
+            foreach (var item in _bindings)
             {
                 if (elementType.IsInstanceOfType(item))
                 {
@@ -212,7 +225,7 @@ namespace PragmaInject.Core
 
         private bool TryGetSingleDependencyByType(Type type, bool isRecursive, out object dependency)
         {
-            foreach (var item in _containerList)
+            foreach (var item in _bindings)
             {
                 if (type.IsInstanceOfType(item))
                 {
@@ -232,6 +245,33 @@ namespace PragmaInject.Core
             
             dependency = null;
             return false;
+        }
+        
+        public T InstantiatePrefab<T>(T original, Transform container = null) where T : Component
+        {
+            return InstantiatePrefab(container,(parent) => UnityEngine.Object.Instantiate(original, parent));
+        }
+        
+        public T InstantiatePrefab<T>(T original, Transform container, bool isWorldPositionStays) where T : Component
+        {
+            return InstantiatePrefab(container, (parent) => UnityEngine.Object.Instantiate(original, parent, isWorldPositionStays));
+        }
+
+        public T InstantiatePrefab<T>(T original, Vector3 position, Quaternion rotation, Transform container = null) where T : Component
+        {
+            return InstantiatePrefab(container, (parent) => UnityEngine.Object.Instantiate(original, position, rotation, parent));
+        }
+
+        private T InstantiatePrefab<T>(Transform parent, Func<Transform, T> instantiateMethod)
+            where T : Component
+        {
+            var instance = instantiateMethod.Invoke(RootInject.InvisibleSpawnContainer);
+
+            InjectInMono(instance,true);
+
+            instance.transform.SetParent(parent, false);
+
+            return instance;
         }
     }
 }

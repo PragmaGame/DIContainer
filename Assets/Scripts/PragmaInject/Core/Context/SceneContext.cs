@@ -33,7 +33,7 @@ namespace PragmaInject.Core
 
             base.InstallBindings(container);
 
-            container.InjectDependenciesInObjects(behaviours);
+            container.InjectInObjects(behaviours);
         }
 
         private void Validated()

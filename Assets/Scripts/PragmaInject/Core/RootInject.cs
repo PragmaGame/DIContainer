@@ -10,11 +10,16 @@ namespace PragmaInject.Core
 
         private const string PATH_PROJECT_CONTEXT = "ProjectContext";
         
+        public static Transform InvisibleSpawnContainer { get; private set; }
+        
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void ProjectInitialization()
         {
+            CreateSpawnContainer();
             CreateProjectContext();
-            
+
+            Application.quitting += DestroyProjectContext;
+
             UnitySceneContextEvents.SceneContextLoadedEvent += SceneLoadedHandler;
             UnitySceneContextEvents.SceneContextUnLoadedEvent += SceneUnLoadedHandler;
         }
@@ -22,13 +27,7 @@ namespace PragmaInject.Core
         private static void CreateProjectContext()
         {
             _projectContainer = new Container();
-            
-            Application.quitting += () =>
-            {
-                _projectContainer.Dispose();
-                _projectContainer = null;
-            };
-            
+
             var prefabContext = Resources.Load<ProjectContext>(PATH_PROJECT_CONTEXT);
 
             var context = Object.Instantiate(prefabContext);
@@ -41,11 +40,33 @@ namespace PragmaInject.Core
             var container = _projectContainer.CreateSubContainer();
             
             context.InstallBindings(container);
+            
+            CreateSpawnContainer();
         }
 
         private static void SceneUnLoadedHandler(SceneContext context)
         {
             context.Container.Dispose();
+            
+            InvisibleSpawnContainer = null;
+        }
+
+        private static void DestroyProjectContext()
+        {
+            _projectContainer.Dispose();
+            _projectContainer = null;
+        }
+
+        private static void CreateSpawnContainer()
+        {
+            var spawnContainer = new GameObject(nameof(InvisibleSpawnContainer))
+            {
+                hideFlags = HideFlags.HideInHierarchy
+            };
+
+            spawnContainer.SetActive(false);
+
+            InvisibleSpawnContainer = spawnContainer.transform;
         }
     }
 }

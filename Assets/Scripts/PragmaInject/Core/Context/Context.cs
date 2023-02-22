@@ -18,7 +18,7 @@ namespace PragmaInject.Core
                 installer.InstallBindings(container);
             }
             
-            container.InjectDependenciesInBinders();
+            container.InjectInBinders();
         }
     }
 }
